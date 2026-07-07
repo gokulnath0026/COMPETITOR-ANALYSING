@@ -1,11 +1,19 @@
 import OpenAI from 'openai'
 
-export const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: 'https://api.groq.com/openai/v1',
-})
-
 export const GROQ_MODEL = 'openai/gpt-oss-120b'
+
+// Built lazily (not at module load) so that Next.js's build-time page-data
+// collection doesn't crash when GROQ_API_KEY isn't present in that environment.
+let client: OpenAI | null = null
+function getClient(): OpenAI {
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: 'https://api.groq.com/openai/v1',
+    })
+  }
+  return client
+}
 
 type ChatCompletionParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
 
@@ -18,7 +26,7 @@ export async function createChatCompletion(
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await groq.chat.completions.create({
+      return await getClient().chat.completions.create({
         model: GROQ_MODEL,
         ...params,
       })
